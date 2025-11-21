@@ -1,14 +1,15 @@
-import React from "react";
 import style from "./Home.module.sass";
-import FrameCapture from "views/Camera/FrameCapture";
-import HandLandmarkDetector from "views/Camera/HandLandmarkDetector";
+import Camera from "components/Camera/Camera";
+import Camera_old from "components/Camera/Camera_old";
 
 function Home() {
   return (
     <div className={style.container}>
-      TESTUJEMY APLIKACJĘ
-      {/* <FrameCapture /> */}
-      <HandLandmarkDetector/>
+      <div className={style.camera_row}>
+        <div className={style.camera}>
+          <Camera />
+        </div>
+      </div>
     </div>
   );
 }

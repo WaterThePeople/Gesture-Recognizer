@@ -1,0 +1,35 @@
+@import 'styles'
+
+.container
+    cursor: pointer
+    width: $value-16
+    height: $value-8
+    border-radius: $value-4
+    position: relative
+    transition: background-color 0.3s ease
+    &.on
+        background-color: $b5
+    &.off
+        background-color: $b3
+
+.dot
+    width: $value-7
+    height: $value-7
+    border-radius: 50%
+    background-color: $b8
+    position: absolute
+    top: 2px
+    transition: transform 0.3s ease, background-color 0.3s ease
+    &.on
+        transform: translateX(calc($value-16 - $value-7 - 2px))
+    &.off
+        transform: translateX(2px)
+
+.red
+    background-color: $red4
+
+.green
+    background-color: $green4
+
+.blue
+    background-color: $blue4

@@ -1,0 +1,46 @@
+@import 'styles'
+
+.container
+    @include element-flex(row, center, center)
+    border: 2px solid $bw
+    padding: $value-2 $value-4
+    border-radius: $value-3
+    background: none
+    &:hover
+        cursor: pointer
+        border-color: $w
+        .text
+            color: $w
+
+.text
+    color: $bw
+    +label-20
+    +m
+        +label-16
+
+.red
+    border-color: $red4
+    .text
+        color: $red4
+    &:hover
+        border-color: $red3
+        .text
+            color: $red3
+
+.green
+    border-color: $green4
+    .text
+        color: $green4
+    &:hover
+        border-color: $green3
+        .text
+            color: $green3
+
+.blue
+    border-color: $blue4
+    .text
+        color: $blue4
+    &:hover
+        border-color: $blue3
+        .text
+            color: $blue3

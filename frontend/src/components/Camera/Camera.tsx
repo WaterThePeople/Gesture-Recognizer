@@ -1,40 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
+import style from "./Camera.module.sass";
 import {
   FilesetResolver,
   HandLandmarker,
   HandLandmarkerResult,
 } from "@mediapipe/tasks-vision";
+import DefaultButton from "components/DefaultButton/DefaultButton";
+import SwitchButton from "components/SwitchButton/SwitchButton";
+import HAND_POINTS from "utils/handPoints";
 
-const HandLandmarkDetector: React.FC = () => {
+const Camera: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isReady, setIsReady] = useState(false);
-  const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const [frames, setFrames] = useState<string[]>([]);
-
-  const HAND_CONNECTIONS = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 4], // Thumb
-    [0, 5],
-    [5, 6],
-    [6, 7],
-    [7, 8], // Index
-    [5, 9],
-    [9, 10],
-    [10, 11],
-    [11, 12], // Middle
-    [9, 13],
-    [13, 14],
-    [14, 15],
-    [15, 16], // Ring
-    [13, 17],
-    [17, 18],
-    [18, 19],
-    [19, 20], // Pinky
-    [0, 17], // Palm base
-  ];
+  const [showLandmarks, setShowLandmarks] = useState(true);
 
   useEffect(() => {
     let animationId: number | null = null;
@@ -52,11 +33,10 @@ const HandLandmarkDetector: React.FC = () => {
           numHands: 2,
         });
 
-        setLandmarker(handLandmarker);
         setIsReady(true);
 
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480, frameRate: { ideal: 24, max: 24 } },
+          video: true,
         });
 
         const video = videoRef.current;
@@ -66,6 +46,13 @@ const HandLandmarkDetector: React.FC = () => {
         video.onloadedmetadata = async () => {
           try {
             await video.play();
+
+            const canvas = canvasRef.current;
+            if (canvas) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+            }
+
             predictLoop(handLandmarker);
           } catch (err) {
             console.warn("Autoplay was prevented:", err);
@@ -102,31 +89,33 @@ const HandLandmarkDetector: React.FC = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        result.landmarks?.forEach((landmarks) => {
-          HAND_CONNECTIONS.forEach(([start, end]) => {
-            const p1 = landmarks[start];
-            const p2 = landmarks[end];
-            ctx.beginPath();
-            ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
-            ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
-            ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-          });
+        if (showLandmarks) {
+          result.landmarks?.forEach((landmarks) => {
+            HAND_POINTS.forEach(([start, end]) => {
+              const p1 = landmarks[start];
+              const p2 = landmarks[end];
+              ctx.beginPath();
+              ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+              ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+              ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            });
 
-          for (const landmark of landmarks) {
-            ctx.beginPath();
-            ctx.arc(
-              landmark.x * canvas.width,
-              landmark.y * canvas.height,
-              4,
-              0,
-              2 * Math.PI
-            );
-            ctx.fillStyle = "rgba(0, 255, 0, 0.8)";
-            ctx.fill();
-          }
-        });
+            for (const landmark of landmarks) {
+              ctx.beginPath();
+              ctx.arc(
+                landmark.x * canvas.width,
+                landmark.y * canvas.height,
+                4,
+                0,
+                2 * Math.PI
+              );
+              ctx.fillStyle = "rgba(0, 255, 0, 0.8)";
+              ctx.fill();
+            }
+          });
+        }
 
         const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
         setFrames((prev) => {
@@ -147,57 +136,29 @@ const HandLandmarkDetector: React.FC = () => {
       if (animationId) cancelAnimationFrame(animationId);
       if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [showLandmarks]);
 
   return (
-    <div style={{ display: "flex", gap: "16px" }}>
-      <div style={{ position: "relative", display: "inline-block" }}>
-        {!isReady && <p>Loading hand detector...</p>}
-        <video
-          ref={videoRef}
-          width={640}
-          height={480}
-          style={{ display: "none" }}
+    <div className={style.container}>
+      <video ref={videoRef} className={style.video} />
+      <canvas ref={canvasRef} className={style.canvas} />
+      <div className={style.buttons_row}>
+        <DefaultButton
+          text="Start translating"
+          onClick={() => console.log("start translating")}
+          color="green"
         />
-        <canvas
-          ref={canvasRef}
-          width={640}
-          height={480}
-          style={{
-            borderRadius: "10px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-          }}
+        <DefaultButton
+          text="Stop translating"
+          onClick={() => console.log("stop translating")}
+          color="red"
         />
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "4px",
-          width: "320px",
-          alignContent: "start",
-          overflowY: "auto",
-          maxHeight: "480px",
-        }}
-      >
-        {frames.map((f, i) => (
-          <img
-            key={i}
-            src={f}
-            alt={`frame-${i}`}
-            width={80}
-            height={60}
-            style={{
-              objectFit: "cover",
-              borderRadius: "6px",
-              border: "1px solid rgba(0,0,0,0.2)",
-            }}
-          />
-        ))}
+        {/* <SwitchButton color="red" onClick={() => setShowLandmarks((prev) => !prev)}/> */}
+        <SwitchButton color="blue" onClick={() => console.log("switch")} />
+        <SwitchButton color="none" onClick={() => console.log("switch")} />
       </div>
     </div>
   );
 };
 
-export default HandLandmarkDetector;
+export default Camera;
