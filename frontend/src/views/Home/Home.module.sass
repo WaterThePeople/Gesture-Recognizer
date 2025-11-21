@@ -9,10 +9,10 @@
     box-sizing: border-box
     padding: $value-8
     color: $w
-    background: $b1
+    background: $b2
     border-radius: $value-3
 
-.camera_row
+.row
     width: 100%
     @include element-flex(row)
     gap: $value-8
@@ -21,3 +21,8 @@
     width: 50%
     aspect-ratio: 1 / 1
     display: flex
+
+.frames
+    width: 50%
+    @include element-flex(column)
+    gap: $value-8

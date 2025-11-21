@@ -1,6 +1,10 @@
 @import 'styles'
 
 .container
+    @include element-flex(row, center,center)
+    gap: $value-2
+
+.switch
     cursor: pointer
     width: $value-16
     height: $value-8
@@ -24,6 +28,13 @@
         transform: translateX(calc($value-16 - $value-7 - 2px))
     &.off
         transform: translateX(2px)
+
+.text
+    +label-16
+    &.on
+        color: $bw
+    &.off
+        color: $b7
 
 .red
     background-color: $red4

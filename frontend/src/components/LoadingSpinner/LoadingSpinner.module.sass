@@ -1,0 +1,33 @@
+@import 'styles'
+
+.container
+    --offset: 4px
+    position: relative
+    background-color: $b2
+    border-radius: 50%
+    overflow: hidden
+    z-index: 1
+    &::before
+        content: ""
+        background: conic-gradient($b2 210deg, $w, $b2)
+        position: absolute
+        top: 50%
+        left: 50%
+        transform: translate(-50%,-50%)
+        aspect-ratio: 1
+        width: 100%
+        animation: rotate 1.5s linear infinite
+    &::after
+        content: ""
+        background-color: $b2
+        border-radius: 50%
+        position: absolute
+        inset: var(--offset)
+        height: calc(100% - 2 * var(--offset))
+        width: calc(100% - 2 * var(--offset))
+
+@keyframes rotate
+    from
+        transform: translate(-50%,-50%) scale(1.4) rotate(0turn)
+    to
+        transform: translate(-50%,-50%) scale(1.4) rotate(1turn)

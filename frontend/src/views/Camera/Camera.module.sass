@@ -7,17 +7,29 @@
     gap: $value-8
 
 .video
-    width: 100%
-    height: 100%
+    width: 0
+    height: 0
     display: none
 
 .canvas
     width: 100%
     height: 100%
     border-radius: $value-3
-    box-shadow: 0 $value-1 $value-3 $b2
+    box-shadow: 0 $value-1 $value-3 $b3
+
+.clean_canvas
+    width: 0
+    height: 0
+    display: none
 
 .buttons_row
     width: 100%
     @include element-flex(row, center, center)
     gap: $value-8
+
+.loading
+    @include element-flex(row, center, center)
+    width: 100%
+    height: 100%
+    border-radius: $value-3
+    box-shadow: 0 $value-1 $value-3 $b3
