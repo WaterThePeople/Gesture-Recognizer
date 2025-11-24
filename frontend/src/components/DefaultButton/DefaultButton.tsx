@@ -5,14 +5,16 @@ function DefaultButton({
   onClick,
   text,
   color = "none",
+  className,
 }: {
   onClick: Function;
   text: string;
   color?: "none" | "red" | "green" | "blue";
+  className?: any;
 }) {
   return (
     <button
-      className={cn(style.container, {
+      className={cn(style.container,className, {
         [style.red]: color === "red",
         [style.green]: color === "green",
         [style.blue]: color === "blue",

@@ -11,6 +11,7 @@
     color: $w
     background: $b2
     border-radius: $value-3
+    position: relative
 
 .row
     width: 100%
@@ -18,11 +19,34 @@
     gap: $value-8
 
 .camera
-    width: 50%
+    width: calc(50% - $value-4)
     aspect-ratio: 1 / 1
     display: flex
 
 .frames
-    width: 50%
+    width: calc(50% - $value-4)
+    aspect-ratio: 1 / 1
+    display: flex
+
+.horizontal_scroll
+    height: 100%
+    background-color: $b3
+    padding: $value-6
+    border-radius: $value-3
+
+.column
     @include element-flex(column)
-    gap: $value-8
+    gap: $value-4
+    height: 100%
+
+.column_item
+    aspect-ratio: 1/1
+    height: calc(100%/3)
+    border-radius: $value-3
+
+
+.frames_counter
+    position: absolute
+    top: $value-2
+    right: $value-2
+    +label-16

@@ -22,10 +22,33 @@
     height: 0
     display: none
 
+.frame_canvas
+    width: 0
+    height: 0
+    display: none
+
+.buttons_column
+    width: 100%
+    @include element-flex(column, center, center)
+    gap: $value-8
+
 .buttons_row
     width: 100%
     @include element-flex(row, center, center)
     gap: $value-8
+
+.button
+    width: calc(100% / 3)
+
+.time_row
+    flex: 1
+    @include element-flex(row, center, center)
+    gap: $value-1
+
+.time
+    +label-20
+    color: $bw
+
 
 .loading
     @include element-flex(row, center, center)

@@ -1,0 +1,17 @@
+@import 'styles'
+
+.container
+    width: 100%
+    gap: $value-4
+    @include element-flex(row, flex-start, center)
+    flex-wrap: nowrap
+    overflow-x: auto
+    white-space: nowrap
+    -ms-overflow-style: none
+    scrollbar-width: none
+    cursor: grab
+    box-sizing: border-box
+    &:active
+        cursor: grabbing
+    &::-webkit-scrollbar
+        display: none

@@ -10,22 +10,35 @@ import SwitchButton from "components/SwitchButton/SwitchButton";
 import LoadingSpinner from "components/LoadingSpinner";
 import HAND_POINTS from "utils/handPoints";
 
-const maxFrames = 24;
-
 interface CameraProps {
   setFrames: React.Dispatch<React.SetStateAction<string[]>>;
   setCleanFrames: React.Dispatch<React.SetStateAction<string[]>>;
+  maxFrames: number;
+  frameCaptureTimer: number;
 }
 
-const Camera: React.FC<CameraProps> = ({ setFrames, setCleanFrames }) => {
+const Camera: React.FC<CameraProps> = ({
+  setFrames,
+  setCleanFrames,
+  maxFrames,
+  frameCaptureTimer,
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cleanCanvasRef = useRef<HTMLCanvasElement>(null);
+  const frameCanvasRef = useRef<HTMLCanvasElement>(null);
+
   const [isReady, setIsReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showLandmarks, setShowLandmarks] = useState(true);
+
   const showLandmarksRef = useRef(showLandmarks);
   const isRecordingRef = useRef(isRecording);
+
+  const [time, setTime] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const captureCounterRef = useRef(0);
 
   useEffect(() => {
     showLandmarksRef.current = showLandmarks;
@@ -34,6 +47,33 @@ const Camera: React.FC<CameraProps> = ({ setFrames, setCleanFrames }) => {
   useEffect(() => {
     isRecordingRef.current = isRecording;
   }, [isRecording]);
+
+  const drawLandmarks = (
+    ctx: CanvasRenderingContext2D,
+    landmarksArr: HandLandmarkerResult["landmarks"],
+    width: number,
+    height: number
+  ) => {
+    landmarksArr?.forEach((landmarks) => {
+      HAND_POINTS.forEach(([start, end]) => {
+        const p1 = landmarks[start];
+        const p2 = landmarks[end];
+        ctx.beginPath();
+        ctx.moveTo(p1.x * width, p1.y * height);
+        ctx.lineTo(p2.x * width, p2.y * height);
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+
+      for (const lm of landmarks) {
+        ctx.beginPath();
+        ctx.arc(lm.x * width, lm.y * height, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = "rgba(0, 255, 0, 0.8)";
+        ctx.fill();
+      }
+    });
+  };
 
   useEffect(() => {
     let animationId: number | null = null;
@@ -64,16 +104,26 @@ const Camera: React.FC<CameraProps> = ({ setFrames, setCleanFrames }) => {
         video.onloadedmetadata = async () => {
           await video.play();
 
-          const canvas = canvasRef.current;
-          if (canvas) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+          const w = video.videoWidth;
+          const h = video.videoHeight;
+
+          if (canvasRef.current) {
+            canvasRef.current.width = w;
+            canvasRef.current.height = h;
+          }
+          if (cleanCanvasRef.current) {
+            cleanCanvasRef.current.width = w;
+            cleanCanvasRef.current.height = h;
+          }
+          if (frameCanvasRef.current) {
+            frameCanvasRef.current.width = w;
+            frameCanvasRef.current.height = h;
           }
 
           predictLoop();
         };
-      } catch (error) {
-        console.error("Error initializing hand landmark detector:", error);
+      } catch (err) {
+        console.error("Error initializing hand landmark detector:", err);
       }
     };
 
@@ -81,121 +131,71 @@ const Camera: React.FC<CameraProps> = ({ setFrames, setCleanFrames }) => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const cleanCanvas = cleanCanvasRef.current;
-      if (!video || !canvas || !cleanCanvas || !handLandmarker) return;
+      const frameCanvas = frameCanvasRef.current;
 
-      const ctx = canvas.getContext("2d");
-      const cleanCtx = cleanCanvas.getContext("2d");
-      if (!ctx || !cleanCtx) return;
+      if (!video || !canvas || !cleanCanvas || !frameCanvas || !handLandmarker)
+        return;
 
-      let lastFrameTime = 0;
-      const frameInterval = 1000 / 24;
+      const ctx = canvas.getContext("2d")!;
+      const cleanCtx = cleanCanvas.getContext("2d")!;
+      const frameCtx = frameCanvas.getContext("2d")!;
+
+      let lastTime = 0;
+      const interval = 1000 / 24;
 
       const processFrame = (timestamp: number) => {
-        if (timestamp - lastFrameTime < frameInterval) {
+        if (timestamp - lastTime < interval) {
           animationId = requestAnimationFrame(processFrame);
           return;
         }
-        lastFrameTime = timestamp;
-
-        if (
-          video.videoWidth <= 0 ||
-          video.videoHeight <= 0 ||
-          canvas.width <= 0 ||
-          canvas.height <= 0
-        ) {
-          animationId = requestAnimationFrame(processFrame);
-          return;
-        }
+        lastTime = timestamp;
 
         let result: HandLandmarkerResult;
         try {
           result = handLandmarker!.detectForVideo(video, performance.now());
-        } catch (err) {
-          console.warn("HandLandmarker failed, skipping frame:", err);
+        } catch {
           animationId = requestAnimationFrame(processFrame);
           return;
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const W = canvas.width;
+        const H = canvas.height;
+
+        ctx.clearRect(0, 0, W, H);
+        ctx.drawImage(video, 0, 0, W, H);
 
         if (showLandmarksRef.current) {
-          result.landmarks?.forEach((landmarks) => {
-            HAND_POINTS.forEach(([start, end]) => {
-              const p1 = landmarks[start];
-              const p2 = landmarks[end];
-              ctx.beginPath();
-              ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
-              ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
-              ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
-              ctx.lineWidth = 2;
-              ctx.stroke();
-            });
-
-            for (const landmark of landmarks) {
-              ctx.beginPath();
-              ctx.arc(
-                landmark.x * canvas.width,
-                landmark.y * canvas.height,
-                4,
-                0,
-                2 * Math.PI
-              );
-              ctx.fillStyle = "rgba(0, 255, 0, 0.8)";
-              ctx.fill();
-            }
-          });
+          drawLandmarks(ctx, result.landmarks, W, H);
         }
 
         cleanCtx.fillStyle = "white";
-        cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+        cleanCtx.fillRect(0, 0, W, H);
+        drawLandmarks(cleanCtx, result.landmarks, W, H);
 
-        result.landmarks?.forEach((landmarks) => {
-          HAND_POINTS.forEach(([start, end]) => {
-            const p1 = landmarks[start];
-            const p2 = landmarks[end];
-            cleanCtx.beginPath();
-            cleanCtx.moveTo(
-              p1.x * cleanCanvas.width,
-              p1.y * cleanCanvas.height
-            );
-            cleanCtx.lineTo(
-              p2.x * cleanCanvas.width,
-              p2.y * cleanCanvas.height
-            );
-            cleanCtx.strokeStyle = "green";
-            cleanCtx.lineWidth = 2;
-            cleanCtx.stroke();
-          });
-
-          for (const landmark of landmarks) {
-            cleanCtx.beginPath();
-            cleanCtx.arc(
-              landmark.x * cleanCanvas.width,
-              landmark.y * cleanCanvas.height,
-              4,
-              0,
-              2 * Math.PI
-            );
-            cleanCtx.fillStyle = "red";
-            cleanCtx.fill();
-          }
-        });
+        frameCtx.clearRect(0, 0, W, H);
+        frameCtx.drawImage(video, 0, 0, W, H);
+        drawLandmarks(frameCtx, result.landmarks, W, H);
 
         if (isRecordingRef.current) {
-          const normalFrame = canvas.toDataURL("image/jpeg", 0.6);
-          const cleanFrame = cleanCanvas.toDataURL("image/jpeg", 0.9);
+          captureCounterRef.current += 1;
+          if (captureCounterRef.current % frameCaptureTimer !== 0) {
+            animationId = requestAnimationFrame(processFrame);
+            return;
+          }
+
+          const normalFrame = frameCanvas.toDataURL("image/jpeg", 0.6);
+          const cleanFrame = cleanCanvas.toDataURL("image/jpeg", 0.6);
 
           setFrames((prev) => {
-            const updated = [...prev, normalFrame];
-            if (updated.length > maxFrames) updated.shift();
-            return updated;
+            const arr = [...prev, normalFrame];
+            if (arr.length > maxFrames) arr.shift();
+            return arr;
           });
 
           setCleanFrames((prev) => {
-            const updated = [...prev, cleanFrame];
-            if (updated.length > maxFrames) updated.shift();
-            return updated;
+            const arr = [...prev, cleanFrame];
+            if (arr.length > maxFrames) arr.shift();
+            return arr;
           });
         }
 
@@ -214,6 +214,34 @@ const Camera: React.FC<CameraProps> = ({ setFrames, setCleanFrames }) => {
     };
   }, []);
 
+  useEffect(() => stopRecording, []);
+
+  const startRecording = () => {
+    if (intervalRef.current !== null) return;
+    setIsRecording(true);
+    intervalRef.current = setInterval(() => {
+      setTime((prev) => prev + 1);
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRecording(false);
+  };
+
+  const cleanRecording = () => {
+    stopRecording();
+    setTime(0);
+    setFrames([]);
+    setCleanFrames([]);
+  };
+
+  const minutes = Math.floor(time / 60);
+  const seconds = time % 60;
+
   return (
     <div className={style.container}>
       {isReady ? (
@@ -221,23 +249,49 @@ const Camera: React.FC<CameraProps> = ({ setFrames, setCleanFrames }) => {
           <video ref={videoRef} className={style.video} />
           <canvas ref={canvasRef} className={style.canvas} />
           <canvas ref={cleanCanvasRef} className={style.clean_canvas} />
-          <div className={style.buttons_row}>
-            <DefaultButton
-              text="Start translating"
-              onClick={() => setIsRecording(true)}
-              color="green"
-            />
-            <DefaultButton
-              text="Stop translating"
-              onClick={() => setIsRecording(false)}
-              color="red"
-            />
-            <SwitchButton
-              color="none"
-              onClick={() => setShowLandmarks((prev) => !prev)}
-              text="Hand points"
-              isOn={showLandmarks}
-            />
+          <canvas ref={frameCanvasRef} className={style.frame_canvas} />
+
+          <div className={style.buttons_column}>
+            <div className={style.buttons_row}>
+              <DefaultButton
+                text="Start translating"
+                onClick={() => startRecording()}
+                color="green"
+                className={style.button}
+              />
+              <div className={style.time_row}>
+                <div className={style.time}>
+                  {String(minutes).padStart(2, "0")}
+                </div>
+                :
+                <div className={style.time}>
+                  {String(seconds).padStart(2, "0")}
+                </div>
+              </div>
+              <DefaultButton
+                text="Stop translating"
+                onClick={() => stopRecording()}
+                color="red"
+                className={style.button}
+              />
+            </div>
+
+            <div className={style.buttons_row}>
+              <DefaultButton
+                text="Clear translations"
+                onClick={cleanRecording}
+                className={style.button}
+              />
+
+              <div className={style.button}>
+                <SwitchButton
+                  color="none"
+                  onClick={() => setShowLandmarks((prev) => !prev)}
+                  text="Hand points"
+                  isOn={showLandmarks}
+                />
+              </div>
+            </div>
           </div>
         </>
       ) : (
