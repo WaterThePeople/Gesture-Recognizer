@@ -41,9 +41,23 @@
 
 .column_item
     aspect-ratio: 1/1
-    height: calc(100%/3)
+    height: calc((100% - $value-4*2)/3)
     border-radius: $value-3
+    background: red
 
+.column_item_letter
+    aspect-ratio: 1/1
+    height: calc((100% - $value-4*2)/3)
+    border-radius: $value-3
+    border: 2px solid $b4
+    @include element-flex(column,center,center)
+    gap: $value-4
+
+.letter
+    +label-32
+
+.confidence
+    +label-32
 
 .frames_counter
     position: absolute

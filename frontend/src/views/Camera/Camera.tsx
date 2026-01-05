@@ -13,6 +13,7 @@ import HAND_POINTS from "utils/handPoints";
 interface CameraProps {
   setFrames: React.Dispatch<React.SetStateAction<string[]>>;
   setCleanFrames: React.Dispatch<React.SetStateAction<string[]>>;
+  setLetters: React.Dispatch<React.SetStateAction<[string, string][]>>;
   maxFrames: number;
   frameCaptureTimer: number;
 }
@@ -20,6 +21,7 @@ interface CameraProps {
 const Camera: React.FC<CameraProps> = ({
   setFrames,
   setCleanFrames,
+  setLetters,
   maxFrames,
   frameCaptureTimer,
 }) => {
@@ -47,6 +49,9 @@ const Camera: React.FC<CameraProps> = ({
   useEffect(() => {
     isRecordingRef.current = isRecording;
   }, [isRecording]);
+
+  const isHandVisible = (landmarks: HandLandmarkerResult["landmarks"]) =>
+    landmarks && landmarks.length > 0;
 
   const drawLandmarks = (
     ctx: CanvasRenderingContext2D,
@@ -177,6 +182,11 @@ const Camera: React.FC<CameraProps> = ({
         drawLandmarks(frameCtx, result.landmarks, W, H);
 
         if (isRecordingRef.current) {
+          if (!isHandVisible(result.landmarks)) {
+            animationId = requestAnimationFrame(processFrame);
+            return;
+          }
+
           captureCounterRef.current += 1;
           if (captureCounterRef.current % frameCaptureTimer !== 0) {
             animationId = requestAnimationFrame(processFrame);
@@ -197,6 +207,11 @@ const Camera: React.FC<CameraProps> = ({
             if (arr.length > maxFrames) arr.shift();
             return arr;
           });
+
+          const landmarkData = landmarksToFloatArray(result.landmarks);
+          if (landmarkData) {
+            sendLandmarksToBackend(landmarkData);
+          }
         }
 
         animationId = requestAnimationFrame(processFrame);
@@ -213,6 +228,51 @@ const Camera: React.FC<CameraProps> = ({
       handLandmarker?.close();
     };
   }, []);
+
+  const landmarksToFloatArray = (
+    landmarks: HandLandmarkerResult["landmarks"]
+  ): number[] | null => {
+    if (!landmarks || landmarks.length === 0) return null;
+    const hand = landmarks[0];
+
+    const data: number[] = [];
+    for (const lm of hand) {
+      data.push(lm.x, lm.y, lm.z);
+    }
+
+    return data.length === 63 ? data : null;
+  };
+
+  const sendLandmarksToBackend = async (data: number[]) => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/infer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          data: data,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Backend error:", response.status, text);
+        return;
+      }
+      const result = await response.json();
+      setLetters((prev) => {
+        const arr: [string, string][] = [
+          ...prev,
+          [result.prediction, result.confidence] as [string, string],
+        ];
+        if (arr.length > maxFrames) arr.shift();
+        return arr;
+      });
+    } catch (err) {
+      console.error("Failed to send landmarks:", err);
+    }
+  };
 
   useEffect(() => stopRecording, []);
 
@@ -237,6 +297,7 @@ const Camera: React.FC<CameraProps> = ({
     setTime(0);
     setFrames([]);
     setCleanFrames([]);
+    setLetters([]);
   };
 
   const minutes = Math.floor(time / 60);

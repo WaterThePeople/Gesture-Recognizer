@@ -10,18 +10,26 @@ const maxFrames = 24;
 function Home() {
   const [frames, setFrames] = useState<string[]>([]);
   const [cleanFrames, setCleanFrames] = useState<string[]>([]);
+  const [letters, setLetters] = useState<[string, string][]>([]);
   const horizontalScrollRef = useRef<HorizontalScrollRef>(null);
+
+  function toPercentageString(value: string, decimals = 0): string {
+    return `${(parseFloat(value) * 100).toFixed(decimals)}%`;
+  }
 
   return (
     <div className={style.container}>
       {frames.length > 0 && cleanFrames.length > 0 && (
-        <div className={style.frames_counter}>{frames.length} / {maxFrames}</div>
+        <div className={style.frames_counter}>
+          {frames.length} / {maxFrames}
+        </div>
       )}
       <div className={style.row}>
         <div className={style.camera}>
           <Camera
             setFrames={setFrames}
             setCleanFrames={setCleanFrames}
+            setLetters={setLetters}
             frameCaptureTimer={6}
             maxFrames={maxFrames}
           />
@@ -45,6 +53,20 @@ function Home() {
                     className={style.column_item}
                     key={`clean_frame+${index}`}
                   />
+                  <div className={style.column_item_letter}>
+                    <div className={style.letter}>
+                      {letters[letters.length - 1 - index]
+                        ? letters[letters.length - 1 - index][0]
+                        : ""}
+                    </div>
+                    <div className={style.confidence}>
+                      {toPercentageString(
+                        letters[letters.length - 1 - index]
+                          ? letters[letters.length - 1 - index][1]
+                          : ""
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </HorizontalScroll>
