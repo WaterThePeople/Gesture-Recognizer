@@ -193,20 +193,43 @@ const Camera: React.FC<CameraProps> = ({
             return;
           }
 
-          const normalFrame = frameCanvas.toDataURL("image/jpeg", 0.6);
-          const cleanFrame = cleanCanvas.toDataURL("image/jpeg", 0.6);
+          frameCanvas.toBlob(
+            (frameBlob) => {
+              if (!frameBlob) return;
 
-          setFrames((prev) => {
-            const arr = [...prev, normalFrame];
-            if (arr.length > maxFrames) arr.shift();
-            return arr;
-          });
+              const frameUrl = URL.createObjectURL(frameBlob);
 
-          setCleanFrames((prev) => {
-            const arr = [...prev, cleanFrame];
-            if (arr.length > maxFrames) arr.shift();
-            return arr;
-          });
+              setFrames((prev) => {
+                const next = [...prev, frameUrl];
+                if (next.length > maxFrames) {
+                  URL.revokeObjectURL(next[0]);
+                  next.shift();
+                }
+                return next;
+              });
+            },
+            "image/jpeg",
+            0.6
+          );
+
+          cleanCanvas.toBlob(
+            (cleanBlob) => {
+              if (!cleanBlob) return;
+
+              const cleanUrl = URL.createObjectURL(cleanBlob);
+
+              setCleanFrames((prev) => {
+                const next = [...prev, cleanUrl];
+                if (next.length > maxFrames) {
+                  URL.revokeObjectURL(next[0]);
+                  next.shift();
+                }
+                return next;
+              });
+            },
+            "image/jpeg",
+            0.6
+          );
 
           const landmarkData = landmarksToFloatArray(result.landmarks);
           if (landmarkData) {
@@ -294,10 +317,19 @@ const Camera: React.FC<CameraProps> = ({
 
   const cleanRecording = () => {
     stopRecording();
-    setTime(0);
-    setFrames([]);
-    setCleanFrames([]);
+
+    setFrames((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
+
+    setCleanFrames((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
+
     setLetters([]);
+    setTime(0);
   };
 
   const minutes = Math.floor(time / 60);
